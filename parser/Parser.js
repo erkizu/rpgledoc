@@ -43,6 +43,8 @@ Parser.prototype.parse = function()
 {
 	let doc;
 
+	let testDocName = 0;
+
 	const scope = {
 		proc: '',
 		ds: '',
@@ -82,9 +84,16 @@ Parser.prototype.parse = function()
 
 		let line = orig_line;
 
+		if (testDocName == 1) {
+			testDocName = 0
+			if (!/\/{2}/g.test(line)) {
+				state = DOC_NAME;
+			}
+		}
+
 		if (state == DOC_NAME) {
 			let m;
-			if ((m = line.match(/^\s*dcl-(proc|ds|s|c|pr)\s+(\w+)/))) {
+			if ((m = line.match(/\s*dcl-(proc|ds|s|c|pr)\s+(\w+)/))) {
 				doc.type = m[1];
 				doc.refname = m[2];
 			} else {
@@ -99,10 +108,10 @@ Parser.prototype.parse = function()
 		}
 		if (state == DOC_OUT) {
 			if (!scope.pi) {
-				const r = /^\s*dcl-pi\s+\*n\b/;
+				const r = /\s*dcl-pi\b/;
 				if (r.test(line) && !/\bend-pi\b/.test(line)) {
 					let m;
-					if ((m = line.match(/^\s*dcl-pi\s+\*n\s+(\S+);/i)))
+					if ((m = line.match(/\s*dcl-pi/i)))
 						scope.pi = m[1];
 					else
 						scope.pi = '-';
@@ -110,12 +119,12 @@ Parser.prototype.parse = function()
 						doc.tag_return.type = scope.pi;
 				}
 			} else {
-				if (/^\s*end-pi\b/i.test(line)) {
+				if (/\s*end-pi\b/i.test(line)) {
 					scope.pi = '';
 				} else if (doc && doc.refname == scope.proc) {
 					/* Update current doc with proper types for the params */
 					let m;
-					if ((m = line.match(/^\s*(\w+)\s+(.*?);/))) {
+					if ((m = line.match(/\s*(\w+)\s+(.*?);/))) {
 						doc.tag_params.some((param) => {
 							if (param.arg == m[1]) {
 								param.type = m[2];
@@ -129,16 +138,16 @@ Parser.prototype.parse = function()
 
 			if (!scope.ds) {
 				let m;
-				if ((m = line.match(/^\s*dcl-ds\s+(\w+)/i))
+				if ((m = line.match(/\s*dcl-ds\s+(\w+)/i))
 				    && !/\bend-ds\b|\blikeds\b/.test(line))
 					scope.ds = m[1];
 			} else {
-				if (/^\s*end-ds\b/i.test(line)) {
+				if (/\s*end-ds\b/i.test(line)) {
 					scope.ds = '';
 				} else if (doc && doc.refname == scope.ds) {
 					/* Update current doc with proper types for the params */
 					let m;
-					if ((m = line.match(/^\s*(\w+)\s+(.*?);/))) {
+					if ((m = line.match(/\s*(\w+)\s+(.*?);/))) {
 						doc.tag_params.some((param) => {
 							if (param.arg == m[1]) {
 								param.type = m[2];
@@ -152,16 +161,16 @@ Parser.prototype.parse = function()
 
 			if (!scope.pr) {
 				let m;
-				if ((m = line.match(/^\s*dcl-pr\s+(\w+)/i))
+				if ((m = line.match(/\s*dcl-pr\s+(\w+)/i))
 				    && !/\bend-pr\b|\blikeds\b/.test(line))
 					scope.pr = m[1];
 			} else {
-				if (/^\s*end-pr\b/i.test(line)) {
+				if (/\s*end-pr\b/i.test(line)) {
 					scope.pr = '';
 				} else if (doc && doc.refname == scope.pr) {
 					/* Update current doc with proper types for the params */
 					let m;
-					if ((m = line.match(/^\s*(\w+)\s+(.*?);/))) {
+					if ((m = line.match(/\s*(\w+)\s+(.*?);/))) {
 						doc.tag_params.some((param) => {
 							if (param.arg == m[1]) {
 								param.type = m[2];
@@ -175,14 +184,14 @@ Parser.prototype.parse = function()
 
 			if (!scope.proc) {
 				let m;
-				if ((m = line.match(/^\s*dcl-proc\s+(\S+(?=\s+export|\s*;))/i)))
+				if ((m = line.match(/\s*dcl-proc\s+(\S+(?=\s+export|\s*;))/i)))
 					scope.proc = m[1];
 			} else {
-				if (/^\s*end-proc\b/i.test(line))
+				if (/\s*end-proc\b/i.test(line))
 					scope.proc = '';
 			}
 
-			if (/^\s*\/\*\*\s*$/.test(line)) {
+			if (/\/{2}\*{10,}/.test(line)) {
 				state = DOC_SDESC;
 
 				doc = {
@@ -212,8 +221,9 @@ Parser.prototype.parse = function()
 			return;		/* Next line */
 		}
 
-		if (/\*\/\s*$/.test(line)) {
-			state = DOC_NAME;
+		if (/\/{2}\*{10,}/.test(line)) {
+			//state = DOC_NAME;
+			testDocName = 1; /* Can't decide wether DOC_NAME is next state. We'll have to check next line */ 
 			return;		/* Next line */
 		}
 
